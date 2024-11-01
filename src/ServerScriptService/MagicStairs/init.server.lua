@@ -64,9 +64,11 @@ local default_config = {
 	DeleteWedge = false;
 	MatchAppearance = true;
 	YStep = 10;
-	CapinosW = 1;
-	CapinosH = 1;
+	CapinosW = .1;
+	CapinosH = .2;
 	CapinosEnabled = true;
+	PreviewMode = false;
+	CapinosRounded = true;
 }
 
 local config = table.clone(default_config)
@@ -125,6 +127,48 @@ for i,v in pairs(config) do
 	end
 end
 
+local function createPreviewSteps(wedge, number, cf, size)
+	local sizeY = (size.Y / number)
+	local lastColor = BrickColor.White()
+	
+	for i = 1, number do
+		lastColor = lastColor == BrickColor.White() and BrickColor.Black() or BrickColor.White()
+		
+		local part = Instance.new("Part")
+		part.Name = `PREVIEW_MS_STAIR_{i}`
+		part.BrickColor = lastColor
+		part.Material = Enum.Material.Neon
+		part.Transparency = lastColor == BrickColor.White() and 0.65 or 0.35
+		
+		local Highlight = Instance.new("Highlight")
+		Highlight.FillColor = part.Color
+		Highlight.Parent = part
+
+		local sizeZ = size.Z / number * i
+
+		part.CFrame = cf * CFrame.new(
+			0,
+			(size.Y / number * (number - i)) - size.Y / 2 + sizeY / 2,
+			size.Z / 2 - sizeZ / 2
+		)
+
+		part.Size = Vector3.new(size.X, sizeY, sizeZ)
+		part.Parent = workspace.Terrain
+
+		if config.CapinosEnabled then
+			-- = `PREVIEW_MS_CAPINOS_{i}`
+		end
+	end
+end
+
+local function clearPreviewParts()
+	for _, child in workspace.Terrain:GetChildren() do
+		if child.Name:match("^PREVIEW_MS_") then
+			child:Destroy()
+		end
+	end
+end
+
 Selection.SelectionChanged:Connect(function()
 	if not Gui.Enabled then
 		return;
@@ -151,13 +195,18 @@ Selection.SelectionChanged:Connect(function()
 
 	local cf = wedge.CFrame
 	local size = wedge.Size
+	
+	clearPreviewParts();
+	
+	if config.PreviewMode then
+		createPreviewSteps(wedge, number, cf, size)
+		return
+	end
 
 	local recording = ChangeHistoryService:TryBeginRecording("ConvertWedge", "Converting Wedge")
-	local count = 30
 
 	if not recording then
 		warn("Failed to record Change History Event for Convert Wedge!")
-		return
 	end
 
 	local model = Instance.new("Model", wedge.Parent)
@@ -213,6 +262,28 @@ Selection.SelectionChanged:Connect(function()
 			capinos.TopSurface = Enum.SurfaceType.Smooth
 			capinos.Anchored = true
 			capinos.Parent = model
+			
+			--[[
+			-- TODO: 
+				* Fix the bad math to match suggestion by anotherant.
+			if config.CapinosRounded then
+				local roundedCap = Instance.new("Part")
+				roundedCap.Shape = Enum.PartType.Cylinder
+				roundedCap.Name = `CAPINOS_ROUNDED_{i}`
+
+				roundedCap.Size = Vector3.new(capinos.Size.X, 0.2, capinos.Size.X)
+				roundedCap.CFrame = capinos.CFrame * CFrame.new(0, -(capinos.Size.Y / 2 - roundedCap.Size.Y / 2), -(capinos.Size.Z / 2 + roundedCap.Size.Z / 2)) * CFrame.Angles(0, math.rad(180), 0)
+
+				--.CFrame = capinos.CFrame * CFrame.new(0, 0, -(capinos.Size.Z / 2 + roundedCap.Size.X / 2)) * CFrame.Angles(0, math.rad(180), 0)
+
+				roundedCap.BottomSurface = Enum.SurfaceType.Smooth
+				roundedCap.TopSurface = Enum.SurfaceType.Smooth
+				roundedCap.Anchored = true
+				roundedCap.Color = capinos.Color
+				roundedCap.Material = capinos.Material
+				roundedCap.Transparency = capinos.Transparency
+				roundedCap.Parent = model
+			end]]
 		end
 	end
 
